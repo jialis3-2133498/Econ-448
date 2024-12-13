@@ -95,7 +95,7 @@ names(df_analysis2_labels) <- c("Country", "Year","IPUMS sample identifier","Hou
 # Generate summary statistics table
 stargazer(df_analysis2_labels, 
           type = "text",        # Outputs results in the console
-          title = "Table 2: Summary Statistics for Variables Used in the Analysis",
+          title = "Table 1: Summary Statistics for Variables Used in the Analysis",
           summary.stat = c("mean", "sd", "min", "max", "n"),  # Statistics to include
           digits = 2)           # Number of decimal places for the statistics
 
