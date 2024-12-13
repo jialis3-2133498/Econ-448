@@ -1,0 +1,105 @@
+---
+title: "Econ 448"
+subtitle: "Final Paper"
+author: Jiali Sheng, Chengjun Han
+date: "`r format(Sys.time(), '%m/%d/%Y')`"
+output: html_notebook  
+---
+
+```{r}
+#install.packages("pacman")
+library(pacman)
+pacman::p_load(fixest,ivreg,doBy,htmltools,shiny,DT, coefplot)
+library(ggplot2)
+library(tidyr)
+library(ivreg)
+library(dplyr)
+library(fixest)
+library(doBy)
+library(stargazer)
+library(ipumsr)
+library(coefplot)
+library(readr)
+library(vtable)
+ddi <- read_ipums_ddi("ipumsi_00003.xml")  ##Use whatever title your file has when it downloads, but the name here should be correct for this exercise.
+ipumsr::ipums_view(ddi)
+df_ipums <- read_ipums_micro(ddi)  
+df_analysis <-as.data.frame(df_ipums)
+#In addition to 99, I see that some of the education variables are coded as 90, 91, etc. I will filter those out as well. 
+df_analysis<-filter(df_analysis, YRSCHOOL<90)  #Several complicated codes over 90 here, so filtering these out
+df_analysis$CHBORN[df_analysis$CHBORN == 99] <- 0
+df_analysis$CHSURV[df_analysis$CHSURV == 99] <- 0
+df_analysis<-filter(df_analysis, CHSURV<31) #Values over 30 are don't knows
+df_analysis<-filter(df_analysis, CHBORN<31)
+df_analysis<-filter(df_analysis, YEAR == 1980)
+df_analysis<-filter(df_analysis, SEX == 2)
+df_analysis<-filter(df_analysis, AGE<999)
+df_analysis <- filter(df_analysis, MARST > 0 & MARST < 9)
+df_analysis<-filter(df_analysis, EMPSTAT > 0 & EMPSTAT < 3)
+df_analysis<-filter(df_analysis, DISABLED >0 & DISABLED <9)
+df_analysis$MARST <- ifelse(df_analysis$MARST %in% c(2, 3, 4), 1, 0)
+df_analysis$SEX <- ifelse(df_analysis$SEX == 2, 1, 0)
+df_analysis$EMPSTAT <- ifelse(df_analysis$EMPSTAT == 2, 0, 1)
+df_analysis$DISABLED <- ifelse(df_analysis$DISABLED == 2, 0, 1)
+df_analysis<-transform(df_analysis,CMR=ifelse(CHBORN>0, (CHBORN-CHSURV)/CHBORN, NA))
+df_analysis2 <-na.omit(df_analysis)
+
+```
+cat("First-Stage Regression:\n")
+$$P(EMPSTAT=1) = \alpha_0 + \alpha_1 \cdot DISABLED + \alpha_2 \cdot YRSCHOOL + \alpha_3 \cdot AGE^2 + \nu$$
+$$U=[U(C_m)- T_m]*[U(C_f)- T_f]$$
+
+cat("Second-Stage Regression:\n")
+$$CMR = \alpha_0 + \alpha_1 \cdot {EMPSTAT} + \alpha_2 \cdot YRSCHOOL +\alpha_3 \cdot AGE + \epsilon $$
+
+
+```{r}
+
+
+
+
+# simple linear regression
+reg2 <- lm(CMR ~ EMPSTAT + YRSCHOOL + AGE, data = df_analysis2)
+stargazer(reg2, type = "text", title = "Model without IV")
+summary(reg2)
+library(fixest)
+
+
+
+
+# First-stage regression
+logit_model <- glm(EMPSTAT ~ DISABLED + YRSCHOOL + poly(AGE,2), family = binomial(link = "logit"), data = df_analysis2)
+stargazer(logit_model, type = "text", title = "First-Stage Regression Results")
+#IV Model
+reg3 <- ivreg(CMR~EMPSTAT+YRSCHOOL + AGE|DISABLED + YRSCHOOL+ poly(AGE,2), data = df_analysis2)
+stargazer(reg3, type = "text", title = "IV Model")
+summary(reg3)
+
+
+
+
+
+
+
+
+# Load required package
+library(stargazer)
+
+
+# Create a copy of the dataset with renamed columns
+df_analysis2_labels <- df_analysis2
+names(df_analysis2_labels) <- c("Country", "Year","IPUMS sample identifier","Household serial number","Household weight","Person number","Person Weight", "Age", "Sex", "Marital Status","Marital Status-Detailed", "Children Ever Born", 
+                                "Children Surviving", "Years of Schooling", 
+                                "Employment Status","Employment Status - Detailed", "Disability Status", "Children Mortality Rate")
+
+# Generate summary statistics table
+stargazer(df_analysis2_labels, 
+          type = "text",        # Outputs results in the console
+          title = "Table 2: Summary Statistics for Variables Used in the Analysis",
+          summary.stat = c("mean", "sd", "min", "max", "n"),  # Statistics to include
+          digits = 2)           # Number of decimal places for the statistics
+
+
+
+```
+
